@@ -53,12 +53,21 @@ public final class Dict {
     public static final List<String> HYGIENE_RESULTS = List.of("合格", "不合格");
 
     // ---------------- 预订状态 ----------------
-    public static final List<String> BOOKING_STATUSES = List.of("已预订", "已完成", "已取消");
+    public static final List<String> BOOKING_STATUSES = List.of("已预订", "使用中", "已完成", "已取消");
 
     private static final Map<String, String> BOOKING_STATUS_NAME = Map.of(
             "已预订", "已预订待到店",
+            "使用中", "到店使用中",
             "已完成", "已消费结账",
             "已取消", "已取消");
+
+    // ---------------- 结账方式 ----------------
+    // 只有「储值余额」会校验并扣减会员余额；现金/银行卡只记录结账方式，不产生扣款流水。
+    public static final String PAYMENT_CASH = "现金";
+    public static final String PAYMENT_BANK_CARD = "银行卡";
+    public static final String PAYMENT_BALANCE = "储值余额";
+    public static final List<String> PAYMENT_METHODS =
+            List.of(PAYMENT_CASH, PAYMENT_BANK_CARD, PAYMENT_BALANCE);
 
     // ---------------- 会员等级 ----------------
     public static final List<String> MEMBER_LEVELS = List.of("普通", "银卡", "金卡", "钻石");
@@ -120,6 +129,10 @@ public final class Dict {
 
     public static boolean isValidMemberLevel(String level) {
         return level != null && MEMBER_LEVEL_NAME.containsKey(level);
+    }
+
+    public static boolean isValidPaymentMethod(String paymentMethod) {
+        return paymentMethod != null && PAYMENT_METHODS.contains(paymentMethod);
     }
 
     public static String memberLevelName(String level) {

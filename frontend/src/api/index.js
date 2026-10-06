@@ -39,11 +39,14 @@ export default {
   // ---------------- 消费 ----------------
   listConsumptions: (p) => call(http.get('/consumptions', params(p))),
   createConsumption: (d) => call(http.post('/consumptions', d)),
-  settleBooking: (bookingId) =>
-    call(http.post('/consumptions/settle', null, params({ bookingId }))),
+  settleBooking: (bookingId, paymentMethod) =>
+    call(http.post('/consumptions/settle', null, params({ bookingId, paymentMethod }))),
 
   // ---------------- 会员 ----------------
   listMembers: (p) => call(http.get('/members', params(p))),
+  getMemberDetail: (id) => call(http.get(`/members/${id}/detail`)),
+  rechargeMember: (id, amount, remark) =>
+    call(http.post(`/members/${id}/recharge`, null, params({ amount, remark }))),
   createMember: (d) => call(http.post('/members', d)),
   updateMemberLevel: (id, level) =>
     call(http.put(`/members/${id}/level`, null, params({ level }))),

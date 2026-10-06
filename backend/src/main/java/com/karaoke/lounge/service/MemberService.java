@@ -1,6 +1,8 @@
 package com.karaoke.lounge.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -8,8 +10,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.karaoke.lounge.common.BizException;
 import com.karaoke.lounge.common.Dict;
+import com.karaoke.lounge.dto.MemberDetail;
 import com.karaoke.lounge.entity.Member;
+import com.karaoke.lounge.entity.MemberTransaction;
+import com.karaoke.lounge.repository.BookingRepository;
 import com.karaoke.lounge.repository.MemberRepository;
+import com.karaoke.lounge.repository.MemberTransactionRepository;
 
 /**
  * 会员业务。
@@ -20,9 +26,15 @@ import com.karaoke.lounge.repository.MemberRepository;
 public class MemberService {
 
     private final MemberRepository memberRepository;
+    private final BookingRepository bookingRepository;
+    private final MemberTransactionRepository transactionRepository;
 
-    public MemberService(MemberRepository memberRepository) {
+    public MemberService(MemberRepository memberRepository,
+                         BookingRepository bookingRepository,
+                         MemberTransactionRepository transactionRepository) {
         this.memberRepository = memberRepository;
+        this.bookingRepository = bookingRepository;
+        this.transactionRepository = transactionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -40,6 +52,16 @@ public class MemberService {
     public Member get(Long id) {
         return memberRepository.findById(id)
                 .orElseThrow(() -> new BizException("会员不存在：" + id));
+    }
+
+    @Transactional(readOnly = true)
+    public MemberDetail getDetail(Long id) {
+        Member member = get(id);
+        return MemberDetail.of(
+                member,
+                bookingRepository.findByMemberIdAndStatus(id, "已完成"),
+                transactionRepository.findByMemberIdOrderByCreatedAtDescIdDesc(id)
+        );
     }
 
     @Transactional
@@ -71,8 +93,23 @@ public class MemberService {
         member.setMemberName(input.getMemberName().trim());
         member.setPhone(input.getPhone().trim());
         member.setLevel(level);
-        member.setBalance(input.getBalance() == null ? BigDecimal.ZERO : input.getBalance());
-        return memberRepository.save(member);
+        BigDecimal initialBalance = input.getBalance() == null
+                ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                : input.getBalance().setScale(2, RoundingMode.HALF_UP);
+        member.setBalance(initialBalance);
+        Member saved = memberRepository.save(member);
+        if (initialBalance.compareTo(BigDecimal.ZERO) > 0) {
+            MemberTransaction tx = new MemberTransaction();
+            tx.setMemberId(saved.getId());
+            tx.setType("储值");
+            tx.setAmount(initialBalance);
+            tx.setBalanceBefore(BigDecimal.ZERO);
+            tx.setBalanceAfter(initialBalance);
+            tx.setRemark("开户初始储值");
+            tx.setCreatedAt(LocalDateTime.now());
+            transactionRepository.save(tx);
+        }
+        return saved;
     }
 
     @Transactional

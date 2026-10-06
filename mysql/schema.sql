@@ -16,6 +16,7 @@ CREATE DATABASE IF NOT EXISTS karaoke_lounge
 USE karaoke_lounge;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS member_transaction;
 DROP TABLE IF EXISTS cleaning_record;
 DROP TABLE IF EXISTS cleaning_task;
 DROP TABLE IF EXISTS consumption;
@@ -45,7 +46,14 @@ CREATE TABLE booking (
     start_at   DATETIME     NOT NULL COMMENT '开始时间（北京时间）',
     end_at     DATETIME     NOT NULL COMMENT '结束时间（北京时间）',
     party_size INT          NOT NULL COMMENT '预订人数',
-    status     VARCHAR(16)  NOT NULL COMMENT '已预订/已完成/已取消',
+    status     VARCHAR(16)  NOT NULL COMMENT '已预订/使用中/已完成/已取消',
+    total_amount DECIMAL(10,2) COMMENT '结账金额（消费合计）',
+    payment_method VARCHAR(16) COMMENT '结账方式：现金/银行卡/储值余额',
+    settled_at DATETIME COMMENT '结账时间（北京时间）',
+    CONSTRAINT chk_booking_total_positive CHECK (total_amount IS NULL OR total_amount > 0),
+    CONSTRAINT chk_booking_settled_fields CHECK (
+        status <> '已完成' OR (total_amount IS NOT NULL AND payment_method IS NOT NULL AND settled_at IS NOT NULL)
+    ),
     CONSTRAINT fk_booking_room FOREIGN KEY (room_id) REFERENCES room (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -66,7 +74,33 @@ CREATE TABLE member (
     member_name VARCHAR(32) NOT NULL,
     phone      VARCHAR(24)  NOT NULL,
     level      VARCHAR(16)  NOT NULL COMMENT '普通/银卡/金卡/钻石',
-    balance    DECIMAL(10,2) NOT NULL DEFAULT 0
+    balance    DECIMAL(10,2) NOT NULL DEFAULT 0,
+    CONSTRAINT chk_member_balance_non_negative CHECK (balance >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------- 会员资金流水（只追加） ----------------
+-- 储值和消费扣款都在此落账；储值结账扣款与消费单置为已完成在同一事务内提交。
+-- balance_after 保留每笔后的快照，booking_id 可反查到结账消费单；失败结账不得写入流水、不得扣余额。
+CREATE TABLE member_transaction (
+    id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+    member_id      BIGINT        NOT NULL,
+    type           VARCHAR(16)   NOT NULL COMMENT '储值/消费扣款',
+    amount         DECIMAL(10,2) NOT NULL COMMENT '发生额（正数）',
+    balance_before DECIMAL(10,2) NOT NULL,
+    balance_after  DECIMAL(10,2) NOT NULL,
+    booking_id     BIGINT COMMENT '扣款关联消费单（储值时为空）',
+    remark         VARCHAR(255)  NOT NULL,
+    created_at     DATETIME      NOT NULL COMMENT '发生时间（北京时间）',
+    CONSTRAINT chk_transaction_amount_positive CHECK (amount > 0),
+    CONSTRAINT chk_transaction_balance_non_negative CHECK (balance_before >= 0 AND balance_after >= 0),
+    CONSTRAINT chk_transaction_booking_ref CHECK (
+        (type = '储值' AND booking_id IS NULL) OR
+        (type = '消费扣款' AND booking_id IS NOT NULL)
+    ),
+    INDEX idx_member_transaction_member_time (member_id, created_at, id),
+    UNIQUE KEY uk_transaction_booking (booking_id),
+    CONSTRAINT fk_transaction_member FOREIGN KEY (member_id) REFERENCES member (id),
+    CONSTRAINT fk_transaction_booking FOREIGN KEY (booking_id) REFERENCES booking (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------- 歌曲库 ----------------
@@ -142,16 +176,26 @@ INSERT INTO song (song_code, song_name, singer, language, duration_sec) VALUES
 ('S004', '红',       '福山雅治',   '日文', 347),
 ('S005', '晴天',     '周杰伦',     '国语', 269);
 
-INSERT INTO booking (room_id, member_id, start_at, end_at, party_size, status) VALUES
-(2, 2, '2026-10-02 19:00:00', '2026-10-02 22:00:00', 6,  '已预订'),
-(3, 4, '2026-10-02 20:00:00', '2026-10-02 23:30:00', 12, '使用中'),
-(5, 1, '2026-10-03 18:00:00', '2026-10-03 21:00:00', 10, '已预订'),
-(1, 3, '2026-10-01 14:00:00', '2026-10-01 16:00:00', 2,  '已完成');
+INSERT INTO booking
+(id, room_id, member_id, start_at, end_at, party_size, status, total_amount, payment_method, settled_at) VALUES
+(1, 2, 2, '2026-10-02 19:00:00', '2026-10-02 22:00:00', 6,  '已预订', NULL, NULL, NULL),
+(2, 3, 4, '2026-10-02 20:00:00', '2026-10-02 23:30:00', 12, '使用中', NULL, NULL, NULL),
+(3, 5, 1, '2026-10-03 18:00:00', '2026-10-03 21:00:00', 10, '已预订', NULL, NULL, NULL),
+(4, 1, 3, '2026-10-01 14:00:00', '2026-10-01 16:00:00', 2,  '已完成', 656.00, '储值余额', '2026-10-01 16:05:00');
 
 INSERT INTO consumption (booking_id, item_name, amount, at) VALUES
-(4, '欢唱套餐', 500.00, UTC_TIMESTAMP() + INTERVAL 8 HOUR - INTERVAL 1 DAY),
-(4, '精酿啤酒', 88.00,  UTC_TIMESTAMP() + INTERVAL 8 HOUR - INTERVAL 1 DAY),
-(4, '缤纷果盘', 68.00,  UTC_TIMESTAMP() + INTERVAL 8 HOUR - INTERVAL 1 DAY);
+(4, '欢唱套餐', 500.00, '2026-10-01 14:20:00'),
+(4, '精酿啤酒', 88.00,  '2026-10-01 15:05:00'),
+(4, '缤纷果盘', 68.00,  '2026-10-01 15:35:00');
+
+INSERT INTO member_transaction
+(member_id, type, amount, balance_before, balance_after, booking_id, remark, created_at) VALUES
+(1, '储值', 200.00, 0.00, 200.00, NULL, '初始储值', '2026-09-28 10:00:00'),
+(2, '储值', 1500.00, 0.00, 1500.00, NULL, '初始储值', '2026-09-28 10:05:00'),
+(3, '储值', 600.00, 0.00, 600.00, NULL, '初始储值', '2026-09-28 10:10:00'),
+(4, '储值', 5000.00, 0.00, 5000.00, NULL, '初始储值', '2026-09-28 10:15:00'),
+(3, '储值', 656.00, 600.00, 1256.00, NULL, '前台储值，用于预订#4结账', '2026-10-01 16:00:00'),
+(3, '消费扣款', 656.00, 1256.00, 600.00, 4, '储值余额结算：预订#4消费合计', '2026-10-01 16:05:00');
 
 -- ---------------- 清场任务种子 ----------------
 -- 覆盖闭环各形态：已放行（K06 历史可追溯）、待验收且设备异常未处置（K05）、

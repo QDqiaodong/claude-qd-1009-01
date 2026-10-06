@@ -1,5 +1,6 @@
 package com.karaoke.lounge.entity;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
@@ -18,7 +19,7 @@ import lombok.Setter;
 /**
  * 包厢预订单。
  *
- * <p>状态：已预订 / 已完成 / 已取消。人数不得超过包厢容量；时段须落在营业窗口内且不与同包厢其它预订重叠。</p>
+ * <p>状态：已预订 / 使用中 / 已完成 / 已取消。人数不得超过包厢容量；时段须落在营业窗口内且不与同包厢其它预订重叠。</p>
  */
 @Entity
 @Table(name = "booking")
@@ -50,9 +51,21 @@ public class Booking {
     @Column(name = "party_size", nullable = false)
     private Integer partySize;
 
-    /** 已预订 / 已完成 / 已取消 */
+    /** 已预订 / 使用中 / 已完成 / 已取消 */
     @Column(name = "status", nullable = false, length = 16)
     private String status;
+
+    /** 结账金额；未结账时为空 */
+    @Column(name = "total_amount", precision = 10, scale = 2)
+    private BigDecimal totalAmount;
+
+    /** 现金 / 银行卡 / 储值余额；未结账时为空 */
+    @Column(name = "payment_method", length = 16)
+    private String paymentMethod;
+
+    /** 结账时间；未结账时为空 */
+    @Column(name = "settled_at")
+    private LocalDateTime settledAt;
 
     /** 仅用于前后端传输房间 id（transient：JPA 不持久化，Jackson 仍序列化；持久化外键由 room 维护） */
     private transient Long roomId;
