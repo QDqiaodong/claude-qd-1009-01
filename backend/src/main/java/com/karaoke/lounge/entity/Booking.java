@@ -1,5 +1,6 @@
 package com.karaoke.lounge.entity;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
@@ -54,6 +55,23 @@ public class Booking {
     @Column(name = "status", nullable = false, length = 16)
     private String status;
 
+    /** 前台现付 / 储值余额；仅已完成预订有值 */
+    @Column(name = "settlement_method", length = 16)
+    private String settlementMethod;
+
+    @Column(name = "settlement_amount", precision = 10, scale = 2)
+    private BigDecimal settlementAmount;
+
+    @Column(name = "settled_at")
+    private LocalDateTime settledAt;
+
     /** 仅用于前后端传输房间 id（transient：JPA 不持久化，Jackson 仍序列化；持久化外键由 room 维护） */
     private transient Long roomId;
+
+    public Long getRoomId() {
+        if (roomId != null) {
+            return roomId;
+        }
+        return room == null ? null : room.getId();
+    }
 }

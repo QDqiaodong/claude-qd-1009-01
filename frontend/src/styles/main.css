@@ -164,6 +164,60 @@ body {
 .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
 .toolbar .spacer { margin-left: auto; }
 
+.settle-check {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px dashed #e6a8bf;
+  border-radius: 9px;
+  background: #fff8fb;
+}
+.settle-check .muted, .settled-meta { color: var(--muted); font-size: 12px; }
+.settled-table { margin-top: 12px; }
+.amount-danger { color: #c62828; }
+.amount-plus { color: #2e7d32; }
+
+.recharge-box {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.detail-wrap { padding: 0 18px 24px; }
+.member-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  margin-bottom: 14px;
+  background: linear-gradient(120deg, var(--primary-wash), #fff);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.summary-name { font-size: 20px; font-weight: 800; color: var(--primary-deep); margin-bottom: 6px; }
+.balance-card { text-align: right; }
+.balance-label { font-size: 12px; color: var(--muted); }
+.balance-value { font-size: 28px; font-weight: 900; color: var(--primary-deep); }
+.detail-panel { padding: 14px; }
+.settled-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+.settled-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.settled-head > div:first-child { display: flex; gap: 8px; align-items: center; }
+
 .dialog-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
 .dialog-form .full { grid-column: 1 / -1; }
 

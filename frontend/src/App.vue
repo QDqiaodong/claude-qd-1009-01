@@ -28,8 +28,8 @@ const viewMap = {
 const tabs = [
   { path: '/rooms', label: '包厢', sub: '房态 · 容量 · 最低消费' },
   { path: '/bookings', label: '预订', sub: '时段 · 人数 · 冲突' },
-  { path: '/consumptions', label: '消费', sub: '挂单 · 结账开单' },
-  { path: '/members', label: '会员', sub: '等级 · 预存' },
+  { path: '/consumptions', label: '消费', sub: '挂单 · 储值结账' },
+  { path: '/members', label: '会员', sub: '余额 · 流水' },
   { path: '/songs', label: '歌曲', sub: '语种 · 时长' },
   { path: '/cleaning', label: '清场', sub: '保洁 · 验收 · 整改' }
 ]

@@ -120,7 +120,9 @@ public class BookingService {
     /** 取消预订；若该包厢再无有效预订且当前为「预订」占用，则回置为空闲（使用中/待清场不动，走清场闭环） */
     @Transactional
     public Booking cancel(Long id) {
-        Booking booking = get(id);
+        // 锁定消费单，与结账互斥，避免取消操作覆盖已结账状态。
+        Booking booking = bookingRepository.findForUpdateById(id)
+                .orElseThrow(() -> new BizException("预订不存在：" + id));
         if ("已取消".equals(booking.getStatus())) {
             return booking;
         }
